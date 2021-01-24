@@ -5,6 +5,7 @@ import { ConnectedRouter } from 'connected-react-router/immutable';
 import configureStore, { history } from './store';
 import * as serviceWorker from './serviceWorker';
 
+import './styles/main.scss';
 import App from './pages';
 import reportWebVitals from './reportWebVitals';
 
@@ -14,9 +15,9 @@ const renderApp = () => {
   ReactDOM.render(
     <Provider store={store}>
       <ConnectedRouter history={history}>
-        {/* <React.StrictMode> */}
-        <App />
-        {/* </React.StrictMode> */}
+        <React.StrictMode>
+          <App />
+        </React.StrictMode>
       </ConnectedRouter>
     </Provider>,
     document.getElementById('root'),
