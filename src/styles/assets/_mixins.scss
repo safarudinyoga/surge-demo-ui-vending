@@ -135,11 +135,13 @@
 // Flex Box
 //
 // -----------------------------------------------------------------------------
-@mixin flex($flexDirection: row, $justifyDirection: none, $alignDirection: none) {
+@mixin flex($flexDirection: row, $justifyDirection: none, $alignDirection: none, $flexWrap: unset, $alignContent: none) {
   display: flex;
   flex-direction: $flexDirection;
   justify-content: $justifyDirection;
   align-items: $alignDirection;
+  flex-wrap: $flexWrap;
+  align-content: $alignContent;
 }
 
 // --------------------------------------------------------
