@@ -1,0 +1,71 @@
+variables:
+  IMAGE_VERSION: 1.0.0
+
+stages:
+  - "Build Image"
+  - "Test"
+  - "Staging"
+  - "Production"
+
+build:image:
+  image: kroniak/ssh-client
+  stage: "Build Image"
+  script:
+    - mkdir -p ~/.ssh
+    - cp "$SSH_KEY" ~/.ssh/id_rsa
+    - cp "$SSH_CONFIG" ~/.ssh/config
+    - chmod 700 ~/.ssh && chmod 600 ~/.ssh/*
+    - ssh -p $BUILD_SVR_PORT $BUILD_SVR_HOST "mkdir -p ~/build_temp/$BUILD_PATH"
+    - scp -P $BUILD_SVR_PORT -r ./* $BUILD_SVR_HOST:~/build_temp/$BUILD_PATH/
+    - ssh -p $BUILD_SVR_PORT $BUILD_SVR_HOST "cd ~/build_temp/$BUILD_PATH && docker build -t $IMAGE_NAME:$IMAGE_VERSION ."
+    - ssh -p $BUILD_SVR_PORT $BUILD_SVR_HOST "cd ~/build_temp/$BUILD_PATH && docker push $IMAGE_NAME:$IMAGE_VERSION"
+  only:
+    refs:
+      - master
+
+deploy:test:
+  image: kroniak/ssh-client
+  stage: "Test"
+  script:
+    - echo "Skip"
+  only:
+    refs:
+      - master
+
+deploy:staging:
+  image: kroniak/ssh-client
+  stage: "Staging"
+  when: manual
+  allow_failure: false
+  script:
+    - mkdir -p ~/.ssh
+    - cp "$SSH_KEY" ~/.ssh/id_rsa
+    - cp "$SSH_CONFIG" ~/.ssh/config
+    - chmod 700 ~/.ssh && chmod 600 ~/.ssh/*
+    - cp "$STAGING_KEY" ~/key && chmod 600 ~/key
+    - ssh -L $STAGING_PORT:10.8.0.102:22 -f -N $BUILD_SVR_HOST -p $BUILD_SVR_PORT
+    - ssh -i ~/key -p $STAGING_PORT $STAGING_HOST "mkdir -p $STAGING_PATH"
+    - scp -i ~/key -P $STAGING_PORT $STAGING_COMPOSE $STAGING_HOST:$STAGING_PATH/docker-compose.yml
+    - ssh -i ~/key -p $STAGING_PORT $STAGING_HOST "cd $STAGING_PATH && cat docker-compose.yml | IMAGE_VERSION=$IMAGE_VERSION docker stack deploy --with-registry-auth -c - $STACK_NAME"
+    - ssh -i ~/key -p $STAGING_PORT $STAGING_HOST "rm -rf $STAGING_PATH"
+  only:
+    refs:
+      - master
+
+deploy:production:
+  image: kroniak/ssh-client
+  stage: "Production"
+  when: manual
+  allow_failure: false
+  script:
+    - mkdir -p ~/.ssh
+    - cp "$SSH_KEY" ~/.ssh/id_rsa
+    - cp "$SSH_CONFIG" ~/.ssh/config
+    - chmod 700 ~/.ssh && chmod 600 ~/.ssh/*
+    - ssh -p $PRODUCTION_PORT $PRODUCTION_HOST "mkdir -p $PRODUCTION_PATH"
+    - scp -P $PRODUCTION_PORT $PRODUCTION_ENV_FILE $PRODUCTION_HOST:$PRODUCTION_PATH/.env
+    - scp -P $PRODUCTION_PORT $PRODUCTION_COMPOSE $PRODUCTION_HOST:$PRODUCTION_PATH/docker-compose.yml
+    - ssh -p $PRODUCTION_PORT $PRODUCTION_HOST "cd $PRODUCTION_PATH && cat docker-compose.yml | IMAGE_VERSION=$IMAGE_VERSION docker stack deploy --with-registry-auth -c - $STACK_NAME"
+  only:
+    refs:
+      - master
